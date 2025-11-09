@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import * as authService from '../services/authService';
-import type { User } from '../types';
+import type { AuthResult } from '../types';
 import { StockIcon } from '../components/icons/NavigationIcons';
 
 interface LoginProps {
-  onLoginSuccess: (user: User) => void;
+  onAuthSuccess: (authResult: AuthResult) => void;
 }
 
 type LoginMethod = 'email' | 'phone';
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+const Login: React.FC<LoginProps> = ({ onAuthSuccess }) => {
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loginMethod, setLoginMethod] = useState<LoginMethod>('email');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -18,18 +19,22 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAuth = async (authFn: () => Promise<AuthResult>) => {
     setError(null);
     setIsLoading(true);
     try {
-      const user = await authService.loginWithEmail(email);
-      onLoginSuccess(user);
+      const result = await authFn();
+      onAuthSuccess(result);
     } catch (err: any) {
-      setError(err.message || 'Failed to login.');
+      setError(err.message || 'An unknown error occurred.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleAuth(() => authService.handleEmailAuth(email, isSignUp));
   };
 
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -47,18 +52,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
   };
   
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleVerifyOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      const user = await authService.verifyOtp(phone, otp);
-      onLoginSuccess(user);
-    } catch (err: any) {
-      setError(err.message || 'Failed to verify OTP.');
-    } finally {
-      setIsLoading(false);
-    }
+    handleAuth(() => authService.handlePhoneAuth(phone, otp, isSignUp));
   };
 
 
@@ -70,7 +66,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     <StockIcon className="w-12 h-12 text-primary-600 dark:text-primary-400" />
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white"><span className="text-blue-600 dark:text-blue-400">Laxs</span> Inventory</h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-2">Sign in to manage your business.</p>
+                <p className="text-gray-600 dark:text-gray-400 mt-2">{isSignUp ? 'Create a new account to get started.' : 'Sign in to manage your business.'}</p>
             </header>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
@@ -82,13 +78,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
                 
                 {loginMethod === 'email' && (
-                    <form onSubmit={handleEmailLogin} className="space-y-6">
+                    <form onSubmit={handleEmailSubmit} className="space-y-6">
                          <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
                             <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500" />
                         </div>
                         <button type="submit" disabled={isLoading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:bg-primary-300">
-                           {isLoading ? 'Signing In...' : 'Sign In'}
+                           {isLoading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : (isSignUp ? 'Sign Up' : 'Sign In')}
                         </button>
                     </form>
                 )}
@@ -115,7 +111,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                             <input type="text" id="otp" value={otp} onChange={(e) => setOtp(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500" />
                         </div>
                         <button type="submit" disabled={isLoading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:bg-primary-300">
-                           {isLoading ? 'Verifying...' : 'Verify & Sign In'}
+                           {isLoading ? 'Verifying...' : (isSignUp ? 'Verify & Sign Up' : 'Verify & Sign In')}
                         </button>
                         <button type="button" onClick={() => setOtpSent(false)} className="w-full text-center text-sm text-primary-600 hover:underline">
                             Change Number
@@ -125,8 +121,16 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
             </div>
              <div className="text-center mt-6">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+                  <button onClick={() => { setIsSignUp(!isSignUp); setError(null); }} className="font-medium text-primary-600 hover:text-primary-500">
+                    {isSignUp ? 'Sign In' : 'Sign Up'}
+                  </button>
+                </p>
+             </div>
+             <div className="text-center mt-6">
                 <button
-                    onClick={() => onLoginSuccess({ id: 'guest_user_session' })}
+                    onClick={() => onAuthSuccess({ user: { id: 'guest_user_session' }, isNew: false })}
                     className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 >
                     Skip for now & browse as guest

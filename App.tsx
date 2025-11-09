@@ -7,23 +7,25 @@ import Profile from './views/Profile';
 import Profit from './views/Profit';
 import Reports from './views/Reports';
 import Login from './views/Login';
+import OnboardingModal from './components/OnboardingModal';
 import { HomeIcon, BillingIcon, StockIcon, HistoryIcon, ProfitIcon } from './components/icons/NavigationIcons';
 import * as storageService from './services/storageService';
 import * as authService from './services/authService';
-import type { AppView, User } from './types';
+import type { AppView, User, AuthResult } from './types';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<AppView>('home');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     // Check for logged in user
     const user = authService.getCurrentUser();
     if (user) {
       setCurrentUser(user);
-      storageService.initializeData(); // Ensure data is initialized for the logged-in user
+      storageService.initializeData(false); // Ensure data is initialized for the logged-in user
     }
     setIsLoading(false);
 
@@ -53,9 +55,12 @@ const App: React.FC = () => {
     setTimeout(() => setView(currentView), 0);
   };
   
-  const handleLoginSuccess = (user: User) => {
-    setCurrentUser(user);
-    storageService.initializeData();
+  const handleAuthSuccess = (authResult: AuthResult) => {
+    setCurrentUser(authResult.user);
+    storageService.initializeData(authResult.isNew);
+    if (authResult.isNew) {
+      setShowOnboarding(true);
+    }
   };
 
   const handleLogout = () => {
@@ -73,7 +78,7 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return <Login onAuthSuccess={handleAuthSuccess} />;
   }
 
   const renderView = () => {
@@ -118,6 +123,7 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen font-sans">
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
       <main>
         {renderView()}
       </main>

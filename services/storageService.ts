@@ -34,12 +34,20 @@ const getUserKey = (baseKey: string): string | null => {
     return `${user.id}_${baseKey}`;
 };
 
-export const initializeData = (): void => {
+export const initializeData = (isNewUser: boolean = false): void => {
   const stockKey = getUserKey(STOCK_KEY);
   const billsKey = getUserKey(BILLS_KEY);
 
   if (!stockKey || !billsKey) return;
 
+  // For new users, always start with an empty slate.
+  if (isNewUser) {
+    localStorage.setItem(stockKey, JSON.stringify([]));
+    localStorage.setItem(billsKey, JSON.stringify([]));
+    return;
+  }
+  
+  // For existing users or guests, populate with sample data only if their storage is completely empty.
   if (!localStorage.getItem(stockKey)) {
     localStorage.setItem(stockKey, JSON.stringify(sampleStock));
   }

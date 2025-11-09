@@ -49,3 +49,8 @@ export interface DailyProfit {
 export interface User {
   id: string; // email or phone number
 }
+
+export interface AuthResult {
+  user: User;
+  isNew: boolean;
+}
