@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Laxs Inventory Management",
+  "description": "A comprehensive inventory and billing management system powered by AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
